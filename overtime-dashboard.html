@@ -61,6 +61,12 @@ tr.skill-row td{color:#64748b;font-size:.79rem;padding:.35rem 1rem .35rem 2.5rem
 .text-red{color:#dc2626;font-weight:600}
 .toggle-btn{background:none;border:none;cursor:pointer;color:#94a3b8;font-size:.75rem;width:18px;display:inline-block;text-align:center}
 .no-data{padding:3rem;text-align:center;color:#94a3b8;font-size:.9rem}
+.charts-row{display:grid;grid-template-columns:1fr 1fr;gap:1.2rem;margin-top:1.5rem}
+.chart-box{background:#fff;border-radius:10px;padding:1.2rem 1.4rem;box-shadow:0 1px 3px rgba(0,0,0,.08),0 2px 6px rgba(0,0,0,.04)}
+.chart-box h4{font-size:.88rem;font-weight:700;color:#1e293b;margin-bottom:.9rem}
+.chart-sel-row{display:flex;align-items:center;gap:.75rem;margin-top:1.2rem;flex-wrap:wrap;padding:.65rem 1rem;background:#f8fafc;border-radius:8px;border:1px solid #e2e8f0}
+.chart-sel-row label{font-size:.85rem;font-weight:600;color:#475569;white-space:nowrap}
+@media(max-width:720px){.charts-row{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -118,6 +124,22 @@ tr.skill-row td{color:#64748b;font-size:.79rem;padding:.35rem 1rem .35rem 2.5rem
       <select id="period-select" onchange="renderPeriodView()"></select>
     </div>
     <div id="period-content"><div class="no-data">Upload a file to view data.</div></div>
+    <div id="period-charts-wrap" style="display:none">
+      <div class="chart-sel-row">
+        <label>Charts for depot:</label>
+        <select id="period-chart-depot" onchange="renderPeriodCharts()"></select>
+      </div>
+      <div class="charts-row">
+        <div class="chart-box">
+          <h4>Daily Usage (hrs)</h4>
+          <canvas id="period-daily-chart"></canvas>
+        </div>
+        <div class="chart-box">
+          <h4>Usage by Reason (hrs)</h4>
+          <canvas id="period-reason-chart"></canvas>
+        </div>
+      </div>
+    </div>
   </div>
 
   <div id="view-week" class="view">
@@ -126,6 +148,22 @@ tr.skill-row td{color:#64748b;font-size:.79rem;padding:.35rem 1rem .35rem 2.5rem
       <select id="week-select" onchange="renderWeekView()"></select>
     </div>
     <div id="week-content"><div class="no-data">Upload a file to view data.</div></div>
+    <div id="week-charts-wrap" style="display:none">
+      <div class="chart-sel-row">
+        <label>Charts for depot:</label>
+        <select id="week-chart-depot" onchange="renderWeekCharts()"></select>
+      </div>
+      <div class="charts-row">
+        <div class="chart-box">
+          <h4>Daily Usage (hrs)</h4>
+          <canvas id="week-daily-chart"></canvas>
+        </div>
+        <div class="chart-box">
+          <h4>Usage by Reason (hrs)</h4>
+          <canvas id="week-reason-chart"></canvas>
+        </div>
+      </div>
+    </div>
   </div>
 
 </div>
@@ -195,7 +233,7 @@ function getCurrentPeriod() {
   return w ? PERIODS.find(p => p.weeks.includes(w)) : null;
 }
 
-let budgets = {}, usage = {}, depots = [], dataLoaded = false;
+let budgets = {}, usage = {}, entries = {}, depots = [], dataLoaded = false;
 
 function parseXlsx(ab) {
   const wb = XLSX.read(ab, {type:'array', cellDates:true});
@@ -219,8 +257,10 @@ function parseXlsx(ab) {
   // Depot sheets
   depots = depotCols.filter(d => wb.SheetNames.includes(d));
   usage = {};
+  entries = {};
   depots.forEach(depot => {
     usage[depot] = {};
+    entries[depot] = [];
     const sh = wb.Sheets[depot];
     if (!sh) return;
     const rows = XLSX.utils.sheet_to_json(sh, {header:1, raw:true, cellDates:true});
@@ -243,6 +283,8 @@ function parseXlsx(ab) {
       if (!wn) continue;
       if (!usage[depot][wn]) usage[depot][wn] = {};
       usage[depot][wn][sk] = (usage[depot][wn][sk] || 0) + hrs;
+      const reason = String(row[3] || '').trim() || 'Other';
+      entries[depot].push({date: dateToLocal(date), skill: sk, hours: hrs, reason});
     }
   });
   return true;
@@ -357,6 +399,10 @@ function populateSelects() {
   if (cw) ws.value = cw;
   const cp = getCurrentPeriod();
   if (cp) ps.value = cp.num;
+
+  const dOpts = depots.map(d => `<option value="${d}">${d}</option>`).join('');
+  document.getElementById('period-chart-depot').innerHTML = dOpts;
+  document.getElementById('week-chart-depot').innerHTML = dOpts;
 }
 
 // ── Render all views ──
@@ -481,6 +527,8 @@ function renderPeriodView() {
   });
   html += '</table></div>';
   document.getElementById('period-content').innerHTML = html;
+  document.getElementById('period-charts-wrap').style.display = 'block';
+  renderPeriodCharts();
 }
 
 function renderWeekView() {
@@ -529,6 +577,123 @@ function renderWeekView() {
   });
   html += '</table></div>';
   document.getElementById('week-content').innerHTML = html;
+  document.getElementById('week-charts-wrap').style.display = 'block';
+  renderWeekCharts();
+}
+
+// ── Charts ──
+const REASONS = ['Covering Sick','Covering Vacancy','Covering Holiday','Other'];
+const REASON_COLORS = ['#3b82f6','#f59e0b','#22c55e','#a78bfa'];
+let _charts = {};
+
+function normReason(r) {
+  const n = (r || '').toLowerCase().trim();
+  if (n.includes('sick'))    return 'Covering Sick';
+  if (n.includes('vacan'))   return 'Covering Vacancy';
+  if (n.includes('holid'))   return 'Covering Holiday';
+  return 'Other';
+}
+
+function dateKey(d) {
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+
+function destroyChart(id) {
+  if (_charts[id]) { _charts[id].destroy(); delete _charts[id]; }
+}
+
+function buildChart(canvasId, labels, data, colors, maxTicksX) {
+  destroyChart(canvasId);
+  const ctx = document.getElementById(canvasId);
+  if (!ctx) return;
+  _charts[canvasId] = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        data,
+        backgroundColor: Array.isArray(colors) ? colors : labels.map(() => colors),
+        borderRadius: 4,
+        borderSkipped: false,
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: {display: false},
+        tooltip: {callbacks: {label: c => c.parsed.y.toFixed(1) + ' hrs'}}
+      },
+      scales: {
+        y: {beginAtZero:true, ticks:{callback: v => v + 'h'}, grid:{color:'#f1f5f9'}},
+        x: {grid:{display:false}, ticks:{font:{size:10}, maxRotation:45, maxTicksLimit: maxTicksX || 40}}
+      }
+    }
+  });
+}
+
+function renderPeriodCharts() {
+  if (!dataLoaded || typeof Chart === 'undefined') return;
+  const pnum = parseInt(document.getElementById('period-select').value);
+  const depot = document.getElementById('period-chart-depot').value;
+  const p = PERIODS.find(x => x.num === pnum);
+  if (!p || !depot) return;
+
+  const startDate = getWeekStart(p.weeks[0]);
+  const endDate = new Date(startDate);
+  endDate.setDate(startDate.getDate() + p.weeks.length * 7 - 1);
+  const depEntries = entries[depot] || [];
+
+  // Daily bars — one per day across the whole period
+  const dayLabels = [], dayTotals = [];
+  for (let d = new Date(startDate); dateKey(d) <= dateKey(endDate); d.setDate(d.getDate() + 1)) {
+    const k = dateKey(d);
+    dayLabels.push(fmtDate(new Date(d)));
+    dayTotals.push(depEntries.filter(e => dateKey(e.date) === k).reduce((s, e) => s + e.hours, 0));
+  }
+
+  // Reason bars
+  const startKey = dateKey(startDate), endKey = dateKey(endDate);
+  const reasonTotals = REASONS.map(r =>
+    depEntries
+      .filter(e => { const k = dateKey(e.date); return k >= startKey && k <= endKey && normReason(e.reason) === r; })
+      .reduce((s, e) => s + e.hours, 0)
+  );
+
+  buildChart('period-daily-chart', dayLabels, dayTotals, '#3b82f6', 35);
+  buildChart('period-reason-chart', REASONS, reasonTotals, REASON_COLORS);
+}
+
+function renderWeekCharts() {
+  if (!dataLoaded || typeof Chart === 'undefined') return;
+  const wn = parseInt(document.getElementById('week-select').value);
+  const depot = document.getElementById('week-chart-depot').value;
+  if (!depot) return;
+
+  const startDate = getWeekStart(wn);
+  const depEntries = entries[depot] || [];
+  const DAY_NAMES = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+  // Daily bars — 7 days
+  const dayLabels = [], dayTotals = [];
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(startDate);
+    d.setDate(d.getDate() + i);
+    const k = dateKey(d);
+    dayLabels.push(DAY_NAMES[i] + '\n' + fmtDate(d));
+    dayTotals.push(depEntries.filter(e => dateKey(e.date) === k).reduce((s, e) => s + e.hours, 0));
+  }
+
+  // Reason bars
+  const endDate = new Date(startDate); endDate.setDate(startDate.getDate() + 6);
+  const startKey = dateKey(startDate), endKey = dateKey(endDate);
+  const reasonTotals = REASONS.map(r =>
+    depEntries
+      .filter(e => { const k = dateKey(e.date); return k >= startKey && k <= endKey && normReason(e.reason) === r; })
+      .reduce((s, e) => s + e.hours, 0)
+  );
+
+  buildChart('week-daily-chart', dayLabels, dayTotals, '#3b82f6');
+  buildChart('week-reason-chart', REASONS, reasonTotals, REASON_COLORS);
 }
 
 // ── Helpers ──
@@ -548,12 +713,17 @@ function showView(btn, name) {
   btn.classList.add('active');
 }
 
-// ── Load SheetJS then init ──
+// ── Load CDN libraries ──
 (function() {
-  const s = document.createElement('script');
-  s.src = 'https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js';
-  s.onerror = () => { document.getElementById('upload-label').textContent = 'SheetJS failed to load — check internet connection'; };
-  document.head.appendChild(s);
+  [
+    'https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js',
+    'https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js'
+  ].forEach(src => {
+    const s = document.createElement('script');
+    s.src = src;
+    s.onerror = () => console.warn('Failed to load:', src);
+    document.head.appendChild(s);
+  });
 })();
 </script>
 </body>
