@@ -190,7 +190,7 @@ const PERIODS = [
 
 const SKILLS = [
   'Weekly Semi Skilled','Weekly Skilled','Weekly Supervisor',
-  'Salaried Semi Skilled','Salaried Skilled','Salaried Supervisor','Cleaners'
+  'Salaried Semi Skilled','Salaried Skilled','Salaried Supervisor','Cleaners','Contractor'
 ];
 
 function normSkill(s) {
@@ -202,6 +202,7 @@ function normSkill(s) {
   if (/^salaried skilled/.test(n))  return 'Salaried Skilled';
   if (n.includes('salaried super')) return 'Salaried Supervisor';
   if (n.includes('clean'))          return 'Cleaners';
+  if (n.includes('contract'))       return 'Contractor';
   return s;
 }
 
