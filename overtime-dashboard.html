@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Overtime Hours Dashboard — FY 26-27</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f0f4f8;color:#1e293b;min-height:100vh}
+header{background:#1e3a5f;color:#fff;padding:1rem 2rem;display:flex;align-items:center;gap:2rem;flex-wrap:wrap;box-shadow:0 2px 8px rgba(0,0,0,.2)}
+.header-title h1{font-size:1.3rem;font-weight:700;letter-spacing:.3px;line-height:1.2}
+.header-title p{font-size:.8rem;opacity:.7;margin-top:.1rem}
+#upload-area{border:2px dashed rgba(255,255,255,.4);border-radius:8px;padding:.55rem 1.2rem;cursor:pointer;font-size:.85rem;display:flex;align-items:center;gap:.5rem;transition:all .2s;margin-left:auto;white-space:nowrap}
+#upload-area:hover{border-color:rgba(255,255,255,.8);background:rgba(255,255,255,.1)}
+#upload-area.loaded{border-color:#4ade80;color:#4ade80;border-style:solid}
+nav{background:#fff;border-bottom:2px solid #e2e8f0;padding:.4rem 2rem;display:flex;gap:.25rem;flex-wrap:wrap}
+.nav-btn{background:none;border:none;padding:.45rem 1.1rem;border-radius:6px;cursor:pointer;font-size:.88rem;color:#64748b;font-weight:500;transition:all .15s}
+.nav-btn:hover{background:#f1f5f9;color:#1e3a5f}
+.nav-btn.active{background:#1e3a5f;color:#fff}
+#main{padding:1.5rem 2rem;max-width:1400px;margin:0 auto}
+.view{display:none}
+.view.active{display:block}
+#welcome{text-align:center;padding:5rem 2rem;color:#94a3b8}
+#welcome .upload-icon{font-size:4rem;margin-bottom:.5rem}
+#welcome h2{font-size:1.4rem;color:#475569;margin:.5rem 0 .5rem}
+#welcome p{font-size:.9rem}
+.section-header{display:flex;align-items:center;gap:.75rem;margin-bottom:1.2rem;flex-wrap:wrap}
+.section-header h2{font-size:1.15rem;font-weight:700;color:#1e293b}
+.period-badge{background:#1e3a5f;color:#fff;border-radius:20px;padding:.2rem .8rem;font-size:.78rem;font-weight:600}
+.current-badge{background:#0ea5e9;color:#fff;border-radius:20px;padding:.2rem .7rem;font-size:.75rem}
+.cards-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:1rem}
+.card{background:#fff;border-radius:10px;padding:1.1rem;box-shadow:0 1px 3px rgba(0,0,0,.08),0 2px 6px rgba(0,0,0,.04);border-left:4px solid #cbd5e1;transition:box-shadow .2s}
+.card:hover{box-shadow:0 4px 12px rgba(0,0,0,.12)}
+.card.green{border-left-color:#22c55e}
+.card.amber{border-left-color:#f59e0b}
+.card.red{border-left-color:#ef4444}
+.card h3{font-size:.95rem;font-weight:700;margin-bottom:.85rem;color:#1e293b}
+.stats-row{display:grid;grid-template-columns:repeat(3,1fr);gap:.4rem;text-align:center;margin-bottom:.75rem}
+.sv{font-size:1.05rem;font-weight:700;color:#1e3a5f}
+.sl{font-size:.67rem;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;margin-top:.1rem}
+.progress{background:#e2e8f0;border-radius:4px;height:7px;overflow:hidden;margin-bottom:.3rem}
+.progress-fill{height:100%;border-radius:4px;transition:width .4s ease}
+.pct-label{font-size:.72rem;color:#64748b;text-align:right}
+.sel-row{display:flex;align-items:center;gap:.75rem;margin-bottom:1.2rem;flex-wrap:wrap}
+.sel-row label{font-size:.88rem;font-weight:600;color:#475569;white-space:nowrap}
+select{border:1px solid #cbd5e1;border-radius:6px;padding:.4rem .8rem;font-size:.87rem;color:#1e293b;background:#fff;cursor:pointer;max-width:440px}
+.tbl-wrap{overflow-x:auto;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.08),0 2px 6px rgba(0,0,0,.04)}
+table{width:100%;border-collapse:collapse;background:#fff}
+th{background:#1e3a5f;color:#fff;padding:.6rem 1rem;text-align:left;font-size:.8rem;white-space:nowrap;font-weight:600;letter-spacing:.3px}
+th.text-right{text-align:right}
+td{padding:.55rem 1rem;border-bottom:1px solid #f1f5f9;font-size:.84rem;vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr.period-row{background:#f8fafc}
+tr.period-row td{font-weight:600;font-size:.86rem}
+tr.skill-row td{color:#64748b;font-size:.79rem;padding:.35rem 1rem .35rem 2.5rem}
+.mini-progress{background:#e2e8f0;border-radius:3px;height:5px;overflow:hidden;min-width:90px;max-width:160px}
+.mini-fill{height:100%;border-radius:3px}
+.text-right{text-align:right}
+.text-green{color:#16a34a;font-weight:600}
+.text-amber{color:#d97706;font-weight:600}
+.text-red{color:#dc2626;font-weight:600}
+.toggle-btn{background:none;border:none;cursor:pointer;color:#94a3b8;font-size:.75rem;width:18px;display:inline-block;text-align:center}
+.no-data{padding:3rem;text-align:center;color:#94a3b8;font-size:.9rem}
+</style>
+</head>
+<body>
+<header>
+  <div class="header-title">
+    <h1>Overtime Hours Dashboard</h1>
+    <p>Financial Year 2026–27</p>
+  </div>
+  <div id="upload-area" onclick="document.getElementById('file-input').click()"
+       ondragover="event.preventDefault();this.style.background='rgba(255,255,255,.15)'"
+       ondragleave="this.style.background=''"
+       ondrop="event.preventDefault();this.style.background='';handleDrop(event)">
+    <span id="upload-icon">&#8679;</span>
+    <span id="upload-label">Upload Excel File (.xlsx)</span>
+  </div>
+  <input type="file" id="file-input" accept=".xlsx,.xls" style="display:none" onchange="handleFileInput(this)">
+</header>
+
+<nav id="main-nav">
+  <button class="nav-btn active" onclick="showView(this,'overview')">Overview</button>
+  <button class="nav-btn" onclick="showView(this,'depot')">By Depot</button>
+  <button class="nav-btn" onclick="showView(this,'period')">By Period</button>
+  <button class="nav-btn" onclick="showView(this,'week')">By Week</button>
+</nav>
+
+<div id="main">
+
+  <div id="view-overview" class="view active">
+    <div id="welcome">
+      <div class="upload-icon">&#128196;</div>
+      <h2>Upload your overtime spreadsheet to begin</h2>
+      <p>Click the button above or drag and drop your FY 26-27 Excel file.</p>
+    </div>
+    <div id="overview-content" style="display:none">
+      <div class="section-header">
+        <h2>All Depots — Current Period</h2>
+        <span id="current-period-badge" class="period-badge"></span>
+        <span id="current-week-badge" class="current-badge"></span>
+      </div>
+      <div id="overview-cards" class="cards-grid"></div>
+    </div>
+  </div>
+
+  <div id="view-depot" class="view">
+    <div class="sel-row">
+      <label for="depot-select">Depot:</label>
+      <select id="depot-select" onchange="renderDepotView()"></select>
+    </div>
+    <div id="depot-content"><div class="no-data">Upload a file to view data.</div></div>
+  </div>
+
+  <div id="view-period" class="view">
+    <div class="sel-row">
+      <label for="period-select">Period:</label>
+      <select id="period-select" onchange="renderPeriodView()"></select>
+    </div>
+    <div id="period-content"><div class="no-data">Upload a file to view data.</div></div>
+  </div>
+
+  <div id="view-week" class="view">
+    <div class="sel-row">
+      <label for="week-select">Week:</label>
+      <select id="week-select" onchange="renderWeekView()"></select>
+    </div>
+    <div id="week-content"><div class="no-data">Upload a file to view data.</div></div>
+  </div>
+
+</div>
+<script>
+// ── Finance Calendar FY26-27 — 4-4-5 pattern, weeks run Sun→Sat ──
+const FY_START_MS = new Date(2026, 2, 29).getTime(); // 29 Mar 2026
+
+const PERIODS = [
+  {num:1,  label:'P1 — Apr',      weeks:[1,2,3,4]},
+  {num:2,  label:'P2 — Apr/May',  weeks:[5,6,7,8]},
+  {num:3,  label:'P3 — May/Jun',  weeks:[9,10,11,12,13]},
+  {num:4,  label:'P4 — Jul',      weeks:[14,15,16,17]},
+  {num:5,  label:'P5 — Jul/Aug',  weeks:[18,19,20,21]},
+  {num:6,  label:'P6 — Aug/Sep',  weeks:[22,23,24,25,26]},
+  {num:7,  label:'P7 — Sep/Oct',  weeks:[27,28,29,30]},
+  {num:8,  label:'P8 — Oct/Nov',  weeks:[31,32,33,34]},
+  {num:9,  label:'P9 — Nov/Dec',  weeks:[35,36,37,38,39]},
+  {num:10, label:'P10 — Dec/Jan', weeks:[40,41,42,43]},
+  {num:11, label:'P11 — Jan/Feb', weeks:[44,45,46,47]},
+  {num:12, label:'P12 — Feb/Mar', weeks:[48,49,50,51,52]},
+];
+
+const SKILLS = [
+  'Weekly Semi Skilled','Weekly Skilled','Weekly Supervisor',
+  'Salaried Semi Skilled','Salaried Skilled','Salaried Supervisor','Cleaners'
+];
+
+function normSkill(s) {
+  const n = (s || '').toLowerCase().replace(/\s+/g, ' ').trim();
+  if (n.includes('weekly semi'))    return 'Weekly Semi Skilled';
+  if (/^weekly skilled/.test(n))    return 'Weekly Skilled';
+  if (n.includes('weekly super'))   return 'Weekly Supervisor';
+  if (n.includes('salaried semi'))  return 'Salaried Semi Skilled';
+  if (/^salaried skilled/.test(n))  return 'Salaried Skilled';
+  if (n.includes('salaried super')) return 'Salaried Supervisor';
+  if (n.includes('clean'))          return 'Cleaners';
+  return s;
+}
+
+function dateToLocal(d) {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+}
+
+function getWeekNum(date) {
+  const ms = dateToLocal(date).getTime() - FY_START_MS;
+  if (ms < 0) return null;
+  const w = Math.floor(ms / 604800000) + 1;
+  return w <= 52 ? w : null;
+}
+
+function getWeekStart(wn) {
+  const d = new Date(FY_START_MS);
+  d.setDate(d.getDate() + (wn - 1) * 7);
+  return d;
+}
+
+function fmtDate(d) {
+  return d.toLocaleDateString('en-GB', {day:'2-digit', month:'short'});
+}
+
+function getCurrentWeek() {
+  return getWeekNum(new Date());
+}
+
+function getCurrentPeriod() {
+  const w = getCurrentWeek();
+  return w ? PERIODS.find(p => p.weeks.includes(w)) : null;
+}
+
+let budgets = {}, usage = {}, depots = [], dataLoaded = false;
+
+function parseXlsx(ab) {
+  const wb = XLSX.read(ab, {type:'array', cellDates:true});
+
+  // OTBudget sheet
+  const bs = wb.Sheets['OTBudget'];
+  if (!bs) { alert('Could not find OTBudget sheet in this file.'); return false; }
+  const bRows = XLSX.utils.sheet_to_json(bs, {header:1, raw:true});
+  const depotCols = bRows[0].slice(1).filter(Boolean);
+  budgets = {};
+  depotCols.forEach(d => { budgets[d] = {}; });
+  for (let r = 1; r < bRows.length; r++) {
+    const row = bRows[r];
+    if (!row[0]) continue;
+    const sk = normSkill(String(row[0]));
+    depotCols.forEach((d, ci) => {
+      budgets[d][sk] = parseFloat(row[ci + 1]) || 0;
+    });
+  }
+
+  // Depot sheets
+  depots = depotCols.filter(d => wb.SheetNames.includes(d));
+  usage = {};
+  depots.forEach(depot => {
+    usage[depot] = {};
+    const sh = wb.Sheets[depot];
+    if (!sh) return;
+    const rows = XLSX.utils.sheet_to_json(sh, {header:1, raw:true, cellDates:true});
+    for (let r = 1; r < rows.length; r++) {
+      const row = rows[r];
+      if (row[0] == null) continue;
+      let date;
+      if (row[0] instanceof Date) {
+        date = row[0];
+      } else if (typeof row[0] === 'number') {
+        date = new Date(Math.round((row[0] - 25569) * 86400000));
+      } else {
+        date = new Date(String(row[0]));
+      }
+      if (isNaN(date.getTime())) continue;
+      const sk = normSkill(String(row[1] || ''));
+      const hrs = parseFloat(row[2]) || 0;
+      if (hrs === 0) continue;
+      const wn = getWeekNum(date);
+      if (!wn) continue;
+      if (!usage[depot][wn]) usage[depot][wn] = {};
+      usage[depot][wn][sk] = (usage[depot][wn][sk] || 0) + hrs;
+    }
+  });
+  return true;
+}
+
+function calcPeriodStats(depot, pnum) {
+  const p = PERIODS.find(x => x.num === pnum);
+  const out = {};
+  let tb = 0, tu = 0;
+  SKILLS.forEach(sk => {
+    const weekly = (budgets[depot] || {})[sk] || 0;
+    const budget = weekly * p.weeks.length;
+    let used = 0;
+    p.weeks.forEach(w => { used += (usage[depot]?.[w]?.[sk] || 0); });
+    out[sk] = {budget, used, rem: budget - used};
+    tb += budget;
+    tu += used;
+  });
+  out._total = {budget: tb, used: tu, rem: tb - tu};
+  return out;
+}
+
+function calcWeekStats(depot, wn) {
+  const out = {};
+  let tb = 0, tu = 0;
+  SKILLS.forEach(sk => {
+    const budget = (budgets[depot] || {})[sk] || 0;
+    const used = (usage[depot]?.[wn]?.[sk] || 0);
+    out[sk] = {budget, used, rem: budget - used};
+    tb += budget;
+    tu += used;
+  });
+  out._total = {budget: tb, used: tu, rem: tb - tu};
+  return out;
+}
+
+function pctOf(used, budget) {
+  if (budget <= 0) return used > 0 ? 999 : 0;
+  return (used / budget) * 100;
+}
+
+function statusColor(pct) {
+  if (pct <= 75) return '#22c55e';
+  if (pct <= 100) return '#f59e0b';
+  return '#ef4444';
+}
+
+function statusClass(pct) {
+  if (pct <= 75) return 'green';
+  if (pct <= 100) return 'amber';
+  return 'red';
+}
+
+function remClass(pct) {
+  if (pct > 100) return 'text-red';
+  if (pct > 75)  return 'text-amber';
+  return 'text-green';
+}
+
+function f(n) { return n.toFixed(1); }
+function fp(used, budget) { return pctOf(used, budget).toFixed(0); }
+// ── File handling ──
+function processFile(file) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    const ok = parseXlsx(e.target.result);
+    if (!ok) return;
+    dataLoaded = true;
+    populateSelects();
+    renderAll();
+    const ua = document.getElementById('upload-area');
+    ua.classList.add('loaded');
+    document.getElementById('upload-icon').textContent = '✓';
+    document.getElementById('upload-label').textContent = file.name;
+    document.getElementById('welcome').style.display = 'none';
+    document.getElementById('overview-content').style.display = 'block';
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function handleFileInput(input) {
+  if (input.files[0]) processFile(input.files[0]);
+}
+
+function handleDrop(event) {
+  const file = event.dataTransfer.files[0];
+  if (file) processFile(file);
+}
+
+// ── Populate selects ──
+function populateSelects() {
+  const ds = document.getElementById('depot-select');
+  ds.innerHTML = depots.map(d => `<option value="${d}">${d}</option>`).join('');
+
+  const ps = document.getElementById('period-select');
+  ps.innerHTML = PERIODS.map(p => {
+    const s = fmtDate(getWeekStart(p.weeks[0]));
+    const e = fmtDate(new Date(getWeekStart(p.weeks[p.weeks.length-1]).getTime() + 6*86400000));
+    return `<option value="${p.num}">${p.label} (${s} – ${e})</option>`;
+  }).join('');
+
+  const ws = document.getElementById('week-select');
+  ws.innerHTML = Array.from({length:52}, (_, i) => {
+    const wn = i + 1;
+    const s = fmtDate(getWeekStart(wn));
+    const e = fmtDate(new Date(getWeekStart(wn).getTime() + 6*86400000));
+    const p = PERIODS.find(x => x.weeks.includes(wn));
+    return `<option value="${wn}">W${String(wn).padStart(2,'0')} · ${s} – ${e} · ${p ? p.label : ''}</option>`;
+  }).join('');
+
+  const cw = getCurrentWeek();
+  if (cw) ws.value = cw;
+  const cp = getCurrentPeriod();
+  if (cp) ps.value = cp.num;
+}
+
+// ── Render all views ──
+function renderAll() {
+  renderOverview();
+  renderDepotView();
+  renderPeriodView();
+  renderWeekView();
+}
+
+function renderOverview() {
+  const cp = getCurrentPeriod() || PERIODS[0];
+  const cw = getCurrentWeek();
+  document.getElementById('current-period-badge').textContent =
+    cp.label + ' · ' + cp.weeks.length + ' weeks';
+  const wb_el = document.getElementById('current-week-badge');
+  wb_el.textContent = cw ? 'Week ' + cw + ' current' : '';
+  wb_el.style.display = cw ? '' : 'none';
+
+  document.getElementById('overview-cards').innerHTML = depots.map(depot => {
+    const s = calcPeriodStats(depot, cp.num)._total;
+    const pct = pctOf(s.used, s.budget);
+    const fw = Math.min(pct, 100).toFixed(1);
+    return `<div class="card ${statusClass(pct)}">
+      <h3>${depot}</h3>
+      <div class="stats-row">
+        <div><div class="sv">${f(s.budget)}</div><div class="sl">Budget</div></div>
+        <div><div class="sv">${f(s.used)}</div><div class="sl">Used</div></div>
+        <div><div class="sv ${remClass(pct)}">${f(s.rem)}</div><div class="sl">Remaining</div></div>
+      </div>
+      <div class="progress"><div class="progress-fill" style="width:${fw}%;background:${statusColor(pct)}"></div></div>
+      <div class="pct-label">${fp(s.used, s.budget)}% used</div>
+    </div>`;
+  }).join('');
+}
+
+function renderDepotView() {
+  if (!dataLoaded) return;
+  const depot = document.getElementById('depot-select').value;
+  if (!depot) return;
+  let html = `<div class="tbl-wrap"><table>
+    <tr>
+      <th>Period / Skill Set</th>
+      <th class="text-right">Weeks</th>
+      <th class="text-right">Budget (hrs)</th>
+      <th class="text-right">Used (hrs)</th>
+      <th class="text-right">Remaining</th>
+      <th style="min-width:120px">Progress</th>
+    </tr>`;
+  PERIODS.forEach(p => {
+    const s = calcPeriodStats(depot, p.num);
+    const t = s._total;
+    const pct = pctOf(t.used, t.budget);
+    const fw = Math.min(pct, 100).toFixed(1);
+    const uid = `d${p.num}`;
+    html += `<tr class="period-row">
+      <td><button class="toggle-btn" data-uid="${uid}" onclick="toggleRows('${uid}')">&#9654;</button> ${p.label}</td>
+      <td class="text-right">${p.weeks.length}</td>
+      <td class="text-right">${f(t.budget)}</td>
+      <td class="text-right">${f(t.used)}</td>
+      <td class="text-right ${remClass(pct)}">${f(t.rem)}</td>
+      <td><div class="mini-progress"><div class="mini-fill" style="width:${fw}%;background:${statusColor(pct)}"></div></div></td>
+    </tr>`;
+    SKILLS.forEach(sk => {
+      const ss = s[sk];
+      if (ss.budget === 0 && ss.used === 0) return;
+      const sp = pctOf(ss.used, ss.budget);
+      const sfw = Math.min(sp, 100).toFixed(1);
+      html += `<tr class="skill-row" data-parent="${uid}" style="display:none">
+        <td style="padding-left:2.5rem">${sk}</td>
+        <td class="text-right">${p.weeks.length}</td>
+        <td class="text-right">${f(ss.budget)}</td>
+        <td class="text-right">${f(ss.used)}</td>
+        <td class="text-right ${remClass(sp)}">${f(ss.rem)}</td>
+        <td><div class="mini-progress"><div class="mini-fill" style="width:${sfw}%;background:${statusColor(sp)}"></div></div></td>
+      </tr>`;
+    });
+  });
+  html += '</table></div>';
+  document.getElementById('depot-content').innerHTML = html;
+}
+
+function renderPeriodView() {
+  if (!dataLoaded) return;
+  const pnum = parseInt(document.getElementById('period-select').value);
+  const p = PERIODS.find(x => x.num === pnum);
+  if (!p) return;
+  let html = `<div class="tbl-wrap"><table>
+    <tr>
+      <th>Depot / Skill Set</th>
+      <th class="text-right">Budget (hrs)</th>
+      <th class="text-right">Used (hrs)</th>
+      <th class="text-right">Remaining</th>
+      <th style="min-width:120px">Progress</th>
+    </tr>`;
+  depots.forEach(depot => {
+    const s = calcPeriodStats(depot, pnum);
+    const t = s._total;
+    const pct = pctOf(t.used, t.budget);
+    const fw = Math.min(pct, 100).toFixed(1);
+    const uid = `p${depot.replace(/\s/g,'')}`;
+    html += `<tr class="period-row">
+      <td><button class="toggle-btn" data-uid="${uid}" onclick="toggleRows('${uid}')">&#9654;</button> ${depot}</td>
+      <td class="text-right">${f(t.budget)}</td>
+      <td class="text-right">${f(t.used)}</td>
+      <td class="text-right ${remClass(pct)}">${f(t.rem)}</td>
+      <td><div class="mini-progress"><div class="mini-fill" style="width:${fw}%;background:${statusColor(pct)}"></div></div></td>
+    </tr>`;
+    SKILLS.forEach(sk => {
+      const ss = s[sk];
+      if (ss.budget === 0 && ss.used === 0) return;
+      const sp = pctOf(ss.used, ss.budget);
+      const sfw = Math.min(sp, 100).toFixed(1);
+      html += `<tr class="skill-row" data-parent="${uid}" style="display:none">
+        <td style="padding-left:2.5rem">${sk}</td>
+        <td class="text-right">${f(ss.budget)}</td>
+        <td class="text-right">${f(ss.used)}</td>
+        <td class="text-right ${remClass(sp)}">${f(ss.rem)}</td>
+        <td><div class="mini-progress"><div class="mini-fill" style="width:${sfw}%;background:${statusColor(sp)}"></div></div></td>
+      </tr>`;
+    });
+  });
+  html += '</table></div>';
+  document.getElementById('period-content').innerHTML = html;
+}
+
+function renderWeekView() {
+  if (!dataLoaded) return;
+  const wn = parseInt(document.getElementById('week-select').value);
+  const p = PERIODS.find(x => x.weeks.includes(wn));
+  let html = `<div class="section-header" style="margin-bottom:.75rem">
+    <span class="period-badge">Week ${wn}</span>
+    ${p ? `<span class="current-badge">${p.label}</span>` : ''}
+    <span style="font-size:.83rem;color:#64748b">${fmtDate(getWeekStart(wn))} – ${fmtDate(new Date(getWeekStart(wn).getTime()+6*86400000))}</span>
+  </div>
+  <div class="tbl-wrap"><table>
+    <tr>
+      <th>Depot / Skill Set</th>
+      <th class="text-right">Weekly Budget</th>
+      <th class="text-right">Used This Week</th>
+      <th class="text-right">Remaining</th>
+      <th style="min-width:120px">Progress</th>
+    </tr>`;
+  depots.forEach(depot => {
+    const s = calcWeekStats(depot, wn);
+    const t = s._total;
+    const pct = pctOf(t.used, t.budget);
+    const fw = Math.min(pct, 100).toFixed(1);
+    const uid = `w${depot.replace(/\s/g,'')}`;
+    html += `<tr class="period-row">
+      <td><button class="toggle-btn" data-uid="${uid}" onclick="toggleRows('${uid}')">&#9654;</button> ${depot}</td>
+      <td class="text-right">${f(t.budget)}</td>
+      <td class="text-right">${f(t.used)}</td>
+      <td class="text-right ${remClass(pct)}">${f(t.rem)}</td>
+      <td><div class="mini-progress"><div class="mini-fill" style="width:${fw}%;background:${statusColor(pct)}"></div></div></td>
+    </tr>`;
+    SKILLS.forEach(sk => {
+      const ss = s[sk];
+      if (ss.budget === 0 && ss.used === 0) return;
+      const sp = pctOf(ss.used, ss.budget);
+      const sfw = Math.min(sp, 100).toFixed(1);
+      html += `<tr class="skill-row" data-parent="${uid}" style="display:none">
+        <td style="padding-left:2.5rem">${sk}</td>
+        <td class="text-right">${f(ss.budget)}</td>
+        <td class="text-right">${f(ss.used)}</td>
+        <td class="text-right ${remClass(sp)}">${f(ss.rem)}</td>
+        <td><div class="mini-progress"><div class="mini-fill" style="width:${sfw}%;background:${statusColor(sp)}"></div></div></td>
+      </tr>`;
+    });
+  });
+  html += '</table></div>';
+  document.getElementById('week-content').innerHTML = html;
+}
+
+// ── Helpers ──
+function toggleRows(uid) {
+  const rows = document.querySelectorAll(`tr[data-parent="${uid}"]`);
+  const btn = document.querySelector(`button[data-uid="${uid}"]`);
+  if (!rows.length) return;
+  const show = rows[0].style.display === 'none';
+  rows.forEach(r => { r.style.display = show ? '' : 'none'; });
+  if (btn) btn.innerHTML = show ? '&#9660;' : '&#9654;';
+}
+
+function showView(btn, name) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('view-' + name).classList.add('active');
+  btn.classList.add('active');
+}
+
+// ── Load SheetJS then init ──
+(function() {
+  const s = document.createElement('script');
+  s.src = 'https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js';
+  s.onerror = () => { document.getElementById('upload-label').textContent = 'SheetJS failed to load — check internet connection'; };
+  document.head.appendChild(s);
+})();
+</script>
+</body>
+</html>
