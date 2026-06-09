@@ -7,16 +7,17 @@
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f0f4f8;color:#1e293b;min-height:100vh}
-header{background:#1e3a5f;color:#fff;padding:1rem 2rem;display:flex;align-items:center;gap:2rem;flex-wrap:wrap;box-shadow:0 2px 8px rgba(0,0,0,.2)}
+header{background:#001E62;color:#fff;padding:1rem 2rem;display:flex;align-items:center;gap:2rem;flex-wrap:wrap;box-shadow:0 2px 8px rgba(0,0,0,.2)}
 .header-title h1{font-size:1.3rem;font-weight:700;letter-spacing:.3px;line-height:1.2}
 .header-title p{font-size:.8rem;opacity:.7;margin-top:.1rem}
+.header-credit{font-size:.72rem;opacity:.55;margin-top:.25rem;letter-spacing:.3px}
 #upload-area{border:2px dashed rgba(255,255,255,.4);border-radius:8px;padding:.55rem 1.2rem;cursor:pointer;font-size:.85rem;display:flex;align-items:center;gap:.5rem;transition:all .2s;margin-left:auto;white-space:nowrap}
 #upload-area:hover{border-color:rgba(255,255,255,.8);background:rgba(255,255,255,.1)}
 #upload-area.loaded{border-color:#4ade80;color:#4ade80;border-style:solid}
 nav{background:#fff;border-bottom:2px solid #e2e8f0;padding:.4rem 2rem;display:flex;gap:.25rem;flex-wrap:wrap}
 .nav-btn{background:none;border:none;padding:.45rem 1.1rem;border-radius:6px;cursor:pointer;font-size:.88rem;color:#64748b;font-weight:500;transition:all .15s}
-.nav-btn:hover{background:#f1f5f9;color:#1e3a5f}
-.nav-btn.active{background:#1e3a5f;color:#fff}
+.nav-btn:hover{background:#f1f5f9;color:#001E62}
+.nav-btn.active{background:#CE0058;color:#fff}
 #main{padding:1.5rem 2rem;max-width:1400px;margin:0 auto}
 .view{display:none}
 .view.active{display:block}
@@ -26,8 +27,8 @@ nav{background:#fff;border-bottom:2px solid #e2e8f0;padding:.4rem 2rem;display:f
 #welcome p{font-size:.9rem}
 .section-header{display:flex;align-items:center;gap:.75rem;margin-bottom:1.2rem;flex-wrap:wrap}
 .section-header h2{font-size:1.15rem;font-weight:700;color:#1e293b}
-.period-badge{background:#1e3a5f;color:#fff;border-radius:20px;padding:.2rem .8rem;font-size:.78rem;font-weight:600}
-.current-badge{background:#0ea5e9;color:#fff;border-radius:20px;padding:.2rem .7rem;font-size:.75rem}
+.period-badge{background:#CE0058;color:#fff;border-radius:20px;padding:.2rem .8rem;font-size:.78rem;font-weight:600}
+.current-badge{background:rgba(206,0,88,.1);color:#CE0058;border:1px solid rgba(206,0,88,.3);border-radius:20px;padding:.2rem .7rem;font-size:.75rem;font-weight:600}
 .cards-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:1rem}
 .card{background:#fff;border-radius:10px;padding:1.1rem;box-shadow:0 1px 3px rgba(0,0,0,.08),0 2px 6px rgba(0,0,0,.04);border-left:4px solid #cbd5e1;transition:box-shadow .2s}
 .card:hover{box-shadow:0 4px 12px rgba(0,0,0,.12)}
@@ -36,7 +37,7 @@ nav{background:#fff;border-bottom:2px solid #e2e8f0;padding:.4rem 2rem;display:f
 .card.red{border-left-color:#ef4444}
 .card h3{font-size:.95rem;font-weight:700;margin-bottom:.85rem;color:#1e293b}
 .stats-row{display:grid;grid-template-columns:repeat(3,1fr);gap:.4rem;text-align:center;margin-bottom:.75rem}
-.sv{font-size:1.05rem;font-weight:700;color:#1e3a5f}
+.sv{font-size:1.05rem;font-weight:700;color:#001E62}
 .sl{font-size:.67rem;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;margin-top:.1rem}
 .progress{background:#e2e8f0;border-radius:4px;height:7px;overflow:hidden;margin-bottom:.3rem}
 .progress-fill{height:100%;border-radius:4px;transition:width .4s ease}
@@ -46,7 +47,7 @@ nav{background:#fff;border-bottom:2px solid #e2e8f0;padding:.4rem 2rem;display:f
 select{border:1px solid #cbd5e1;border-radius:6px;padding:.4rem .8rem;font-size:.87rem;color:#1e293b;background:#fff;cursor:pointer;max-width:440px}
 .tbl-wrap{overflow-x:auto;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.08),0 2px 6px rgba(0,0,0,.04)}
 table{width:100%;border-collapse:collapse;background:#fff}
-th{background:#1e3a5f;color:#fff;padding:.6rem 1rem;text-align:left;font-size:.8rem;white-space:nowrap;font-weight:600;letter-spacing:.3px}
+th{background:#001E62;color:#fff;padding:.6rem 1rem;text-align:left;font-size:.8rem;white-space:nowrap;font-weight:600;letter-spacing:.3px}
 th.text-right{text-align:right}
 td{padding:.55rem 1rem;border-bottom:1px solid #f1f5f9;font-size:.84rem;vertical-align:middle}
 tr:last-child td{border-bottom:none}
@@ -74,6 +75,7 @@ tr.skill-row td{color:#64748b;font-size:.79rem;padding:.35rem 1rem .35rem 2.5rem
   <div class="header-title">
     <h1>Overtime Hours Dashboard</h1>
     <p>Financial Year 2026–27</p>
+    <p class="header-credit">Designed by First Bus Franchise Engineering</p>
   </div>
   <div id="upload-area" onclick="document.getElementById('file-input').click()"
        ondragover="event.preventDefault();this.style.background='rgba(255,255,255,.15)'"
@@ -583,7 +585,7 @@ function renderWeekView() {
 
 // ── Charts ──
 const REASONS = ['Covering Sick','Covering Vacancy','Covering Holiday','Other'];
-const REASON_COLORS = ['#3b82f6','#f59e0b','#22c55e','#a78bfa'];
+const REASON_COLORS = ['#CE0058','#001E62','#22c55e','#94a3b8'];
 let _charts = {};
 
 function normReason(r) {
@@ -659,7 +661,7 @@ function renderPeriodCharts() {
       .reduce((s, e) => s + e.hours, 0)
   );
 
-  buildChart('period-daily-chart', dayLabels, dayTotals, '#3b82f6', 35);
+  buildChart('period-daily-chart', dayLabels, dayTotals, '#001E62', 35);
   buildChart('period-reason-chart', REASONS, reasonTotals, REASON_COLORS);
 }
 
@@ -692,7 +694,7 @@ function renderWeekCharts() {
       .reduce((s, e) => s + e.hours, 0)
   );
 
-  buildChart('week-daily-chart', dayLabels, dayTotals, '#3b82f6');
+  buildChart('week-daily-chart', dayLabels, dayTotals, '#001E62');
   buildChart('week-reason-chart', REASONS, reasonTotals, REASON_COLORS);
 }
 
