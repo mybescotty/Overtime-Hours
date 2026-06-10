@@ -67,6 +67,9 @@ tr.skill-row td{color:#64748b;font-size:.79rem;padding:.35rem 1rem .35rem 2.5rem
 .chart-box h4{font-size:.88rem;font-weight:700;color:#1e293b;margin-bottom:.9rem}
 .chart-sel-row{display:flex;align-items:center;gap:.75rem;margin-top:1.2rem;flex-wrap:wrap;padding:.65rem 1rem;background:#f8fafc;border-radius:8px;border:1px solid #e2e8f0}
 .chart-sel-row label{font-size:.85rem;font-weight:600;color:#475569;white-space:nowrap}
+.chart-legend{display:flex;gap:1.5rem;margin-top:1.2rem;flex-wrap:wrap;font-size:.82rem;color:#475569;font-weight:600}
+.legend-item{display:flex;align-items:center;gap:.4rem}
+.legend-swatch{display:inline-block;width:12px;height:12px;border-radius:3px}
 @media(max-width:720px){.charts-row{grid-template-columns:1fr}}
 </style>
 </head>
@@ -131,6 +134,10 @@ tr.skill-row td{color:#64748b;font-size:.79rem;padding:.35rem 1rem .35rem 2.5rem
         <label>Charts for depot:</label>
         <select id="period-chart-depot" onchange="renderPeriodCharts()"></select>
       </div>
+      <div class="chart-legend">
+        <span class="legend-item"><i class="legend-swatch" style="background:#001E62"></i>Budgeted Hours</span>
+        <span class="legend-item"><i class="legend-swatch" style="background:#CE0058"></i>Contractor Hours</span>
+      </div>
       <div class="charts-row">
         <div class="chart-box">
           <h4>Daily Usage (hrs)</h4>
@@ -154,6 +161,10 @@ tr.skill-row td{color:#64748b;font-size:.79rem;padding:.35rem 1rem .35rem 2.5rem
       <div class="chart-sel-row">
         <label>Charts for depot:</label>
         <select id="week-chart-depot" onchange="renderWeekCharts()"></select>
+      </div>
+      <div class="chart-legend">
+        <span class="legend-item"><i class="legend-swatch" style="background:#001E62"></i>Budgeted Hours</span>
+        <span class="legend-item"><i class="legend-swatch" style="background:#CE0058"></i>Contractor Hours</span>
       </div>
       <div class="charts-row">
         <div class="chart-box">
@@ -586,7 +597,8 @@ function renderWeekView() {
 
 // ── Charts ──
 const REASONS = ['Covering Sick','Covering Vacancy','Covering Holiday','Other'];
-const REASON_COLORS = ['#CE0058','#001E62','#22c55e','#94a3b8'];
+const BUDGET_COLOR = '#001E62';
+const CONTRACTOR_COLOR = '#CE0058';
 let _charts = {};
 
 function normReason(r) {
@@ -605,30 +617,22 @@ function destroyChart(id) {
   if (_charts[id]) { _charts[id].destroy(); delete _charts[id]; }
 }
 
-function buildChart(canvasId, labels, data, colors, maxTicksX) {
+function buildChart(canvasId, labels, datasets, maxTicksX) {
   destroyChart(canvasId);
   const ctx = document.getElementById(canvasId);
   if (!ctx) return;
   _charts[canvasId] = new Chart(ctx, {
     type: 'bar',
-    data: {
-      labels,
-      datasets: [{
-        data,
-        backgroundColor: Array.isArray(colors) ? colors : labels.map(() => colors),
-        borderRadius: 4,
-        borderSkipped: false,
-      }]
-    },
+    data: { labels, datasets },
     options: {
       responsive: true,
       plugins: {
         legend: {display: false},
-        tooltip: {callbacks: {label: c => c.parsed.y.toFixed(1) + ' hrs'}}
+        tooltip: {callbacks: {label: c => `${c.dataset.label}: ${c.parsed.y.toFixed(1)} hrs`}}
       },
       scales: {
-        y: {beginAtZero:true, ticks:{callback: v => v + 'h'}, grid:{color:'#f1f5f9'}},
-        x: {grid:{display:false}, ticks:{font:{size:10}, maxRotation:45, maxTicksLimit: maxTicksX || 40}}
+        y: {beginAtZero:true, stacked:true, ticks:{callback: v => v + 'h'}, grid:{color:'#f1f5f9'}},
+        x: {stacked:true, grid:{display:false}, ticks:{font:{size:10}, maxRotation:45, maxTicksLimit: maxTicksX || 40}}
       }
     }
   });
@@ -647,23 +651,36 @@ function renderPeriodCharts() {
   const depEntries = entries[depot] || [];
 
   // Daily bars — one per day across the whole period
-  const dayLabels = [], dayTotals = [];
+  const dayLabels = [], dayBudgeted = [], dayContractor = [];
   for (let d = new Date(startDate); dateKey(d) <= dateKey(endDate); d.setDate(d.getDate() + 1)) {
     const k = dateKey(d);
     dayLabels.push(fmtDate(new Date(d)));
-    dayTotals.push(depEntries.filter(e => dateKey(e.date) === k).reduce((s, e) => s + e.hours, 0));
+    const dayEntries = depEntries.filter(e => dateKey(e.date) === k);
+    dayBudgeted.push(dayEntries.filter(e => e.skill !== 'Contractor').reduce((s, e) => s + e.hours, 0));
+    dayContractor.push(dayEntries.filter(e => e.skill === 'Contractor').reduce((s, e) => s + e.hours, 0));
   }
 
   // Reason bars
   const startKey = dateKey(startDate), endKey = dateKey(endDate);
-  const reasonTotals = REASONS.map(r =>
+  const reasonBudgeted = REASONS.map(r =>
     depEntries
-      .filter(e => { const k = dateKey(e.date); return k >= startKey && k <= endKey && normReason(e.reason) === r; })
+      .filter(e => { const k = dateKey(e.date); return k >= startKey && k <= endKey && normReason(e.reason) === r && e.skill !== 'Contractor'; })
+      .reduce((s, e) => s + e.hours, 0)
+  );
+  const reasonContractor = REASONS.map(r =>
+    depEntries
+      .filter(e => { const k = dateKey(e.date); return k >= startKey && k <= endKey && normReason(e.reason) === r && e.skill === 'Contractor'; })
       .reduce((s, e) => s + e.hours, 0)
   );
 
-  buildChart('period-daily-chart', dayLabels, dayTotals, '#001E62', 35);
-  buildChart('period-reason-chart', REASONS, reasonTotals, REASON_COLORS);
+  buildChart('period-daily-chart', dayLabels, [
+    {label:'Budgeted Hours', data: dayBudgeted, backgroundColor: BUDGET_COLOR, borderRadius:4, borderSkipped:false},
+    {label:'Contractor Hours', data: dayContractor, backgroundColor: CONTRACTOR_COLOR, borderRadius:4, borderSkipped:false}
+  ], 35);
+  buildChart('period-reason-chart', REASONS, [
+    {label:'Budgeted Hours', data: reasonBudgeted, backgroundColor: BUDGET_COLOR, borderRadius:4, borderSkipped:false},
+    {label:'Contractor Hours', data: reasonContractor, backgroundColor: CONTRACTOR_COLOR, borderRadius:4, borderSkipped:false}
+  ]);
 }
 
 function renderWeekCharts() {
@@ -677,26 +694,39 @@ function renderWeekCharts() {
   const DAY_NAMES = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 
   // Daily bars — 7 days
-  const dayLabels = [], dayTotals = [];
+  const dayLabels = [], dayBudgeted = [], dayContractor = [];
   for (let i = 0; i < 7; i++) {
     const d = new Date(startDate);
     d.setDate(d.getDate() + i);
     const k = dateKey(d);
     dayLabels.push(DAY_NAMES[i] + '\n' + fmtDate(d));
-    dayTotals.push(depEntries.filter(e => dateKey(e.date) === k).reduce((s, e) => s + e.hours, 0));
+    const dayEntries = depEntries.filter(e => dateKey(e.date) === k);
+    dayBudgeted.push(dayEntries.filter(e => e.skill !== 'Contractor').reduce((s, e) => s + e.hours, 0));
+    dayContractor.push(dayEntries.filter(e => e.skill === 'Contractor').reduce((s, e) => s + e.hours, 0));
   }
 
   // Reason bars
   const endDate = new Date(startDate); endDate.setDate(startDate.getDate() + 6);
   const startKey = dateKey(startDate), endKey = dateKey(endDate);
-  const reasonTotals = REASONS.map(r =>
+  const reasonBudgeted = REASONS.map(r =>
     depEntries
-      .filter(e => { const k = dateKey(e.date); return k >= startKey && k <= endKey && normReason(e.reason) === r; })
+      .filter(e => { const k = dateKey(e.date); return k >= startKey && k <= endKey && normReason(e.reason) === r && e.skill !== 'Contractor'; })
+      .reduce((s, e) => s + e.hours, 0)
+  );
+  const reasonContractor = REASONS.map(r =>
+    depEntries
+      .filter(e => { const k = dateKey(e.date); return k >= startKey && k <= endKey && normReason(e.reason) === r && e.skill === 'Contractor'; })
       .reduce((s, e) => s + e.hours, 0)
   );
 
-  buildChart('week-daily-chart', dayLabels, dayTotals, '#001E62');
-  buildChart('week-reason-chart', REASONS, reasonTotals, REASON_COLORS);
+  buildChart('week-daily-chart', dayLabels, [
+    {label:'Budgeted Hours', data: dayBudgeted, backgroundColor: BUDGET_COLOR, borderRadius:4, borderSkipped:false},
+    {label:'Contractor Hours', data: dayContractor, backgroundColor: CONTRACTOR_COLOR, borderRadius:4, borderSkipped:false}
+  ]);
+  buildChart('week-reason-chart', REASONS, [
+    {label:'Budgeted Hours', data: reasonBudgeted, backgroundColor: BUDGET_COLOR, borderRadius:4, borderSkipped:false},
+    {label:'Contractor Hours', data: reasonContractor, backgroundColor: CONTRACTOR_COLOR, borderRadius:4, borderSkipped:false}
+  ]);
 }
 
 // ── Helpers ──
