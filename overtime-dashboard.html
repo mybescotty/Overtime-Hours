@@ -222,10 +222,11 @@ function dateToLocal(d) {
 }
 
 function getWeekNum(date) {
-  const ms = dateToLocal(date).getTime() - FY_START_MS;
-  if (ms < 0) return null;
-  const w = Math.floor(ms / 604800000) + 1;
-  return w <= 52 ? w : null;
+  const k = dateKey(dateToLocal(date));
+  for (let w = 52; w >= 1; w--) {
+    if (k >= dateKey(getWeekStart(w))) return w;
+  }
+  return null;
 }
 
 function getWeekStart(wn) {
