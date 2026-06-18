@@ -288,7 +288,13 @@ function parseXlsx(ab) {
       } else if (typeof row[0] === 'number') {
         date = new Date(Math.round((row[0] - 25569) * 86400000));
       } else {
-        date = new Date(String(row[0]));
+        const s = String(row[0]);
+        const m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+        if (m) {
+          date = new Date(parseInt(m[3]), parseInt(m[2]) - 1, parseInt(m[1]));
+        } else {
+          date = new Date(s);
+        }
       }
       if (isNaN(date.getTime())) continue;
       const sk = normSkill(String(row[1] || ''));
@@ -597,16 +603,23 @@ function renderWeekView() {
 }
 
 // ── Charts ──
-const REASONS = ['Covering Sick','Covering Vacancy','Covering Holiday','Other'];
+const REASONS = ['Covering Sick','Covering Vacancy','Covering Holiday','Campaign Work','Long Term RTC / VOR','Scheduled Work Catch Up','Cascade Work','Awaiting Categorising','Other'];
 const BUDGET_COLOR = '#001E62';
 const CONTRACTOR_COLOR = '#CE0058';
 let _charts = {};
 
 function normReason(r) {
-  const n = (r || '').toLowerCase().trim();
-  if (n.includes('sick'))    return 'Covering Sick';
-  if (n.includes('vacan'))   return 'Covering Vacancy';
-  if (n.includes('holid'))   return 'Covering Holiday';
+  const t = (r || '').trim();
+  if (REASONS.includes(t)) return t;
+  const n = t.toLowerCase();
+  if (n.includes('sick'))     return 'Covering Sick';
+  if (n.includes('vacan'))    return 'Covering Vacancy';
+  if (n.includes('holid'))    return 'Covering Holiday';
+  if (n.includes('campaign')) return 'Campaign Work';
+  if (n.includes('rtc') || n.includes('vor')) return 'Long Term RTC / VOR';
+  if (n.includes('catch up') || n.includes('scheduled')) return 'Scheduled Work Catch Up';
+  if (n.includes('cascade'))  return 'Cascade Work';
+  if (n.includes('awaiting') || n.includes('categori')) return 'Awaiting Categorising';
   return 'Other';
 }
 
