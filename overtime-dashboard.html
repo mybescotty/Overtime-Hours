@@ -135,8 +135,14 @@ tr.skill-row td{color:#64748b;font-size:.79rem;padding:.35rem 1rem .35rem 2.5rem
         <select id="period-chart-depot" onchange="renderPeriodCharts()"></select>
       </div>
       <div class="chart-legend">
-        <span class="legend-item"><i class="legend-swatch" style="background:#001E62"></i>Budgeted Hours</span>
-        <span class="legend-item"><i class="legend-swatch" style="background:#CE0058"></i>Contractor Hours</span>
+        <span class="legend-item"><i class="legend-swatch" style="background:#001E62"></i>Wkly Semi Skilled</span>
+        <span class="legend-item"><i class="legend-swatch" style="background:#2563eb"></i>Wkly Skilled</span>
+        <span class="legend-item"><i class="legend-swatch" style="background:#0891b2"></i>Wkly Supervisor</span>
+        <span class="legend-item"><i class="legend-swatch" style="background:#059669"></i>Sal Semi Skilled</span>
+        <span class="legend-item"><i class="legend-swatch" style="background:#d97706"></i>Sal Skilled</span>
+        <span class="legend-item"><i class="legend-swatch" style="background:#7c3aed"></i>Sal Supervisor</span>
+        <span class="legend-item"><i class="legend-swatch" style="background:#94a3b8"></i>Cleaners</span>
+        <span class="legend-item"><i class="legend-swatch" style="background:#CE0058"></i>Contractor</span>
       </div>
       <div class="charts-row">
         <div class="chart-box">
@@ -163,8 +169,14 @@ tr.skill-row td{color:#64748b;font-size:.79rem;padding:.35rem 1rem .35rem 2.5rem
         <select id="week-chart-depot" onchange="renderWeekCharts()"></select>
       </div>
       <div class="chart-legend">
-        <span class="legend-item"><i class="legend-swatch" style="background:#001E62"></i>Budgeted Hours</span>
-        <span class="legend-item"><i class="legend-swatch" style="background:#CE0058"></i>Contractor Hours</span>
+        <span class="legend-item"><i class="legend-swatch" style="background:#001E62"></i>Wkly Semi Skilled</span>
+        <span class="legend-item"><i class="legend-swatch" style="background:#2563eb"></i>Wkly Skilled</span>
+        <span class="legend-item"><i class="legend-swatch" style="background:#0891b2"></i>Wkly Supervisor</span>
+        <span class="legend-item"><i class="legend-swatch" style="background:#059669"></i>Sal Semi Skilled</span>
+        <span class="legend-item"><i class="legend-swatch" style="background:#d97706"></i>Sal Skilled</span>
+        <span class="legend-item"><i class="legend-swatch" style="background:#7c3aed"></i>Sal Supervisor</span>
+        <span class="legend-item"><i class="legend-swatch" style="background:#94a3b8"></i>Cleaners</span>
+        <span class="legend-item"><i class="legend-swatch" style="background:#CE0058"></i>Contractor</span>
       </div>
       <div class="charts-row">
         <div class="chart-box">
@@ -604,8 +616,11 @@ function renderWeekView() {
 
 // ── Charts ──
 const REASONS = ['Covering Sick','Covering Vacancy','Covering Holiday','Campaign Work','Long Term RTC / VOR','Scheduled Work Catch Up','Cascade Work','Awaiting Categorising','Other'];
-const BUDGET_COLOR = '#001E62';
-const CONTRACTOR_COLOR = '#CE0058';
+const SKILL_COLORS = {
+  'Weekly Semi Skilled':'#001E62','Weekly Skilled':'#2563eb','Weekly Supervisor':'#0891b2',
+  'Salaried Semi Skilled':'#059669','Salaried Skilled':'#d97706','Salaried Supervisor':'#7c3aed',
+  'Cleaners':'#94a3b8','Contractor':'#CE0058'
+};
 let _charts = {};
 
 function normReason(r) {
@@ -664,37 +679,38 @@ function renderPeriodCharts() {
   endDate.setDate(startDate.getDate() + p.weeks.length * 7 - 1);
   const depEntries = entries[depot] || [];
 
-  // Daily bars — one per day across the whole period
-  const dayLabels = [], dayBudgeted = [], dayContractor = [];
+  // Daily bars — per skill per day
+  const dayLabels = [];
+  const dayData = {};
+  SKILLS.forEach(s => { dayData[s] = []; });
   for (let d = new Date(startDate); dateKey(d) <= dateKey(endDate); d.setDate(d.getDate() + 1)) {
     const k = dateKey(d);
     dayLabels.push(fmtDate(new Date(d)));
     const dayEntries = depEntries.filter(e => dateKey(e.date) === k);
-    dayBudgeted.push(dayEntries.filter(e => e.skill !== 'Contractor').reduce((s, e) => s + e.hours, 0));
-    dayContractor.push(dayEntries.filter(e => e.skill === 'Contractor').reduce((s, e) => s + e.hours, 0));
+    SKILLS.forEach(s => {
+      dayData[s].push(dayEntries.filter(e => e.skill === s).reduce((sum, e) => sum + e.hours, 0));
+    });
   }
 
-  // Reason bars
+  // Reason bars — per skill per reason
   const startKey = dateKey(startDate), endKey = dateKey(endDate);
-  const reasonBudgeted = REASONS.map(r =>
-    depEntries
-      .filter(e => { const k = dateKey(e.date); return k >= startKey && k <= endKey && normReason(e.reason) === r && e.skill !== 'Contractor'; })
-      .reduce((s, e) => s + e.hours, 0)
-  );
-  const reasonContractor = REASONS.map(r =>
-    depEntries
-      .filter(e => { const k = dateKey(e.date); return k >= startKey && k <= endKey && normReason(e.reason) === r && e.skill === 'Contractor'; })
-      .reduce((s, e) => s + e.hours, 0)
-  );
+  const reasonData = {};
+  SKILLS.forEach(s => { reasonData[s] = []; });
+  REASONS.forEach(r => {
+    SKILLS.forEach(s => {
+      reasonData[s].push(
+        depEntries
+          .filter(e => { const k = dateKey(e.date); return k >= startKey && k <= endKey && normReason(e.reason) === r && e.skill === s; })
+          .reduce((sum, e) => sum + e.hours, 0)
+      );
+    });
+  });
 
-  buildChart('period-daily-chart', dayLabels, [
-    {label:'Budgeted Hours', data: dayBudgeted, backgroundColor: BUDGET_COLOR, borderRadius:4, borderSkipped:false},
-    {label:'Contractor Hours', data: dayContractor, backgroundColor: CONTRACTOR_COLOR, borderRadius:4, borderSkipped:false}
-  ], 35);
-  buildChart('period-reason-chart', REASONS, [
-    {label:'Budgeted Hours', data: reasonBudgeted, backgroundColor: BUDGET_COLOR, borderRadius:4, borderSkipped:false},
-    {label:'Contractor Hours', data: reasonContractor, backgroundColor: CONTRACTOR_COLOR, borderRadius:4, borderSkipped:false}
-  ]);
+  const mkDatasets = (data) => SKILLS.map(s => ({
+    label: s, data: data[s], backgroundColor: SKILL_COLORS[s], borderRadius: 0, borderSkipped: false
+  }));
+  buildChart('period-daily-chart', dayLabels, mkDatasets(dayData), 35);
+  buildChart('period-reason-chart', REASONS, mkDatasets(reasonData));
 }
 
 function renderWeekCharts() {
@@ -707,40 +723,41 @@ function renderWeekCharts() {
   const depEntries = entries[depot] || [];
   const DAY_NAMES = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 
-  // Daily bars — 7 days
-  const dayLabels = [], dayBudgeted = [], dayContractor = [];
+  // Daily bars — per skill per day
+  const dayLabels = [];
+  const dayData = {};
+  SKILLS.forEach(s => { dayData[s] = []; });
   for (let i = 0; i < 7; i++) {
     const d = new Date(startDate);
     d.setDate(d.getDate() + i);
     const k = dateKey(d);
     dayLabels.push(DAY_NAMES[i] + '\n' + fmtDate(d));
     const dayEntries = depEntries.filter(e => dateKey(e.date) === k);
-    dayBudgeted.push(dayEntries.filter(e => e.skill !== 'Contractor').reduce((s, e) => s + e.hours, 0));
-    dayContractor.push(dayEntries.filter(e => e.skill === 'Contractor').reduce((s, e) => s + e.hours, 0));
+    SKILLS.forEach(s => {
+      dayData[s].push(dayEntries.filter(e => e.skill === s).reduce((sum, e) => sum + e.hours, 0));
+    });
   }
 
-  // Reason bars
+  // Reason bars — per skill per reason
   const endDate = new Date(startDate); endDate.setDate(startDate.getDate() + 6);
   const startKey = dateKey(startDate), endKey = dateKey(endDate);
-  const reasonBudgeted = REASONS.map(r =>
-    depEntries
-      .filter(e => { const k = dateKey(e.date); return k >= startKey && k <= endKey && normReason(e.reason) === r && e.skill !== 'Contractor'; })
-      .reduce((s, e) => s + e.hours, 0)
-  );
-  const reasonContractor = REASONS.map(r =>
-    depEntries
-      .filter(e => { const k = dateKey(e.date); return k >= startKey && k <= endKey && normReason(e.reason) === r && e.skill === 'Contractor'; })
-      .reduce((s, e) => s + e.hours, 0)
-  );
+  const reasonData = {};
+  SKILLS.forEach(s => { reasonData[s] = []; });
+  REASONS.forEach(r => {
+    SKILLS.forEach(s => {
+      reasonData[s].push(
+        depEntries
+          .filter(e => { const k = dateKey(e.date); return k >= startKey && k <= endKey && normReason(e.reason) === r && e.skill === s; })
+          .reduce((sum, e) => sum + e.hours, 0)
+      );
+    });
+  });
 
-  buildChart('week-daily-chart', dayLabels, [
-    {label:'Budgeted Hours', data: dayBudgeted, backgroundColor: BUDGET_COLOR, borderRadius:4, borderSkipped:false},
-    {label:'Contractor Hours', data: dayContractor, backgroundColor: CONTRACTOR_COLOR, borderRadius:4, borderSkipped:false}
-  ]);
-  buildChart('week-reason-chart', REASONS, [
-    {label:'Budgeted Hours', data: reasonBudgeted, backgroundColor: BUDGET_COLOR, borderRadius:4, borderSkipped:false},
-    {label:'Contractor Hours', data: reasonContractor, backgroundColor: CONTRACTOR_COLOR, borderRadius:4, borderSkipped:false}
-  ]);
+  const mkDatasets = (data) => SKILLS.map(s => ({
+    label: s, data: data[s], backgroundColor: SKILL_COLORS[s], borderRadius: 0, borderSkipped: false
+  }));
+  buildChart('week-daily-chart', dayLabels, mkDatasets(dayData));
+  buildChart('week-reason-chart', REASONS, mkDatasets(reasonData));
 }
 
 // ── Helpers ──
